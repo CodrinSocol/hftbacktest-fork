@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{Cursor, Error, ErrorKind, Read, Write},
+    io::{Error, ErrorKind, Read, Write},
 };
 
 use crate::{
