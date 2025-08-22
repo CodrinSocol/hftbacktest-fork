@@ -182,6 +182,51 @@ class Stats:
     def plot_matplotlib(self, price_as_ret: bool = False):
         from matplotlib import pyplot as plt
 
+        def pan_zoom_factory(fig, base_scale=1.5, pan_factor=0.1):
+            """
+            Attaches a pan and zoom function to the given figure.
+            - Scroll to pan the x-axis.
+            - Shift + Scroll to zoom in/out on the cursor's position.
+            """
+
+            def pan_zoom_fun(event):
+                ax = event.inaxes
+                if ax is None:
+                    return
+
+                if event.key is None:  # PAN
+                    cur_xlim = ax.get_xlim()
+                    x_range = cur_xlim[1] - cur_xlim[0]
+                    pan_amount = x_range * pan_factor
+                    if event.button == 'up':
+                        ax.set_xlim(cur_xlim[0] + pan_amount, cur_xlim[1] + pan_amount)
+                    elif event.button == 'down':
+                        ax.set_xlim(cur_xlim[0] - pan_amount, cur_xlim[1] - pan_amount)
+                    fig.canvas.draw_idle()
+
+                elif event.key == 'shift':  # ZOOM
+                    if event.xdata is None or event.ydata is None:
+                        return
+                    cur_xlim = ax.get_xlim()
+                    cur_ylim = ax.get_ylim()
+                    x_range = (cur_xlim[1] - cur_xlim[0]) * 0.5
+                    y_range = (cur_ylim[1] - cur_ylim[0]) * 0.5
+                    xdata, ydata = event.xdata, event.ydata
+                    if event.button == 'up':
+                        scale = 1 / base_scale
+                    elif event.button == 'down':
+                        scale = base_scale
+                    else:
+                        scale = 1
+                    ax.set_xlim([xdata - x_range * scale, xdata + x_range * scale])
+                    ax.set_ylim([ydata - y_range * scale, ydata + y_range * scale])
+                    fig.canvas.draw_idle()
+
+            fig.canvas.mpl_connect('scroll_event', pan_zoom_fun)
+
+            # CHANGED: Return the function so we can hold a reference to it
+            return pan_zoom_fun
+
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
         fig.subplots_adjust(hspace=0)
         fig.set_size_inches(10, 6)
@@ -197,8 +242,8 @@ class Stats:
             if price_as_ret:
                 ax1.plot(entire_df['timestamp'], equity / book_size * 100)
                 ax1.plot(entire_df['timestamp'], equity_wo_fee / book_size * 100)
-                ax1.plot(entire_df['timestamp'], (entire_df['price'] / entire_df['price'][0] - 1.0) * 100, 'black', alpha=0.2)
-
+                ax1.plot(entire_df['timestamp'], (entire_df['price'] / entire_df['price'][0] - 1.0) * 100, 'black',
+                         alpha=0.2)
                 ax1.set_ylabel('Cumulative Returns (%)')
                 ax1.legend(['Equity', 'Equity w/o fee', 'Price'])
             else:
@@ -206,7 +251,6 @@ class Stats:
                 ax1.plot(entire_df['timestamp'], equity_wo_fee / book_size * 100)
                 ax1_ = ax1.twinx()
                 ax1_.plot(entire_df['timestamp'], entire_df['price'], 'black', alpha=0.2)
-
                 ax1.set_ylabel('Cumulative Returns (%)')
                 ax1_.set_ylabel('Price')
                 ax1.legend(['Equity', 'Equity w/o fee'])
@@ -216,32 +260,30 @@ class Stats:
             ax1.plot(entire_df['timestamp'], equity_wo_fee)
             ax1_ = ax1.twinx()
             ax1_.plot(entire_df['timestamp'], entire_df['price'], 'black', alpha=0.2)
-
             ax1.set_ylabel('Equity')
             ax1_.set_ylabel('Price')
             ax1.legend(['Equity', 'Equity w/o fee', 'Price'])
             ax1_.legend(['Price'])
 
         ax1.grid()
-
         ax2.plot(entire_df['timestamp'], entire_df['position'], label='Position')
-
         ax2_ = ax2.twinx()
         ax2_.plot(entire_df['timestamp'], entire_df['price'], 'black', alpha=0.2, label='Price')
-
         handles, labels = [], []
         for ax in (ax2, ax2_):
             h, l = ax.get_legend_handles_labels()
             handles.extend(h)
             labels.extend(l)
-
         ax2.legend(handles, labels, loc='best')
-
         ax2.set_ylabel('Position (Qty)')
         ax2_.set_ylabel('Price')
         ax2.grid()
 
-        #display(plt.gcf())
+        # CHANGED: Store the returned handler function in a variable.
+        # This keeps it in memory so it stays active while the plot is open.
+        handler_reference = pan_zoom_factory(fig, base_scale=1.5)
+
+        plt.show()
         plt.close()
 
         return fig
