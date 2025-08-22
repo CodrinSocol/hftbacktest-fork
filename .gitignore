@@ -9,3 +9,7 @@ docs/_build
 **/target
 **/tmp_*
 **/*.so
+.idea
+
+target
+*/venv
