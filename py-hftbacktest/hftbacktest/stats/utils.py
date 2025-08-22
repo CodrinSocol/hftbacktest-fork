@@ -50,3 +50,48 @@ def resample(df: pl.DataFrame, frequency: str) -> pl.DataFrame:
         else:
             agg_cols.append(pl.col(col).last())
     return df.group_by_dynamic('timestamp', every=frequency).agg(*agg_cols)
+
+
+def pan_zoom_factory(fig, base_scale=1.5, pan_factor=0.1):
+    """
+    Attaches a pan and zoom function to the figure `fig` passed as parameter.
+    - Scroll to pan the x-axis.
+    - Shift + Scroll to zoom in/out on the cursor's position.
+    """
+
+    def pan_zoom_fun(event):
+        ax = event.inaxes
+        if ax is None:
+            return
+
+        if event.key is None:  # PAN
+            cur_xlim = ax.get_xlim()
+            x_range = cur_xlim[1] - cur_xlim[0]
+            pan_amount = x_range * pan_factor
+            if event.button == 'up':
+                ax.set_xlim(cur_xlim[0] + pan_amount, cur_xlim[1] + pan_amount)
+            elif event.button == 'down':
+                ax.set_xlim(cur_xlim[0] - pan_amount, cur_xlim[1] - pan_amount)
+            fig.canvas.draw_idle()
+
+        elif event.key == 'shift':  # ZOOM
+            if event.xdata is None or event.ydata is None:
+                return
+            cur_xlim = ax.get_xlim()
+            cur_ylim = ax.get_ylim()
+            x_range = (cur_xlim[1] - cur_xlim[0]) * 0.5
+            y_range = (cur_ylim[1] - cur_ylim[0]) * 0.5
+            xdata, ydata = event.xdata, event.ydata
+            if event.button == 'up':
+                scale = 1 / base_scale
+            elif event.button == 'down':
+                scale = base_scale
+            else:
+                scale = 1
+            ax.set_xlim([xdata - x_range * scale, xdata + x_range * scale])
+            ax.set_ylim([ydata - y_range * scale, ydata + y_range * scale])
+            fig.canvas.draw_idle()
+
+    fig.canvas.mpl_connect('scroll_event', pan_zoom_fun)
+
+    return pan_zoom_fun
