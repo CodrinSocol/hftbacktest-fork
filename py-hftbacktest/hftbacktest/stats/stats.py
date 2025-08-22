@@ -80,17 +80,18 @@ class Stats:
         df = pl.DataFrame(self.splits)
         return df
 
-    def plot(self, price_as_ret: bool = False, backend: Literal['matplotlib', 'holoviews'] = 'matplotlib'):
+    def plot(self, price_as_ret: bool = False, interactive_plot: bool = False, backend: Literal['matplotlib', 'holoviews'] = 'matplotlib'):
         """
         Plots the equity curves and positions over time along with the price chart.
 
         Args:
             price_as_ret: Plots the price chart in cumulative returns if set to `True`; otherwise, it plots the price
                           chart in raw price terms.
+            interactive_plot: If set to `True`, the plot will be interactive, allowing zooming and panning. Default: `False`. Only applicable for 'matplotlib' backend.
             backend: Specifies which plotting library is used to plot the charts. The default is 'matplotlib'.
         """
         if backend == 'matplotlib':
-            return self.plot_matplotlib(price_as_ret)
+            return self.plot_matplotlib(price_as_ret, interactive_plot)
         elif backend == 'holoviews':
             return self.plot_holoviews(price_as_ret)
         else:
@@ -179,7 +180,7 @@ class Stats:
 
         return (plt1.relabel('Equity') + plt2.relabel('Position')).cols(1)
 
-    def plot_matplotlib(self, price_as_ret: bool = False):
+    def plot_matplotlib(self, price_as_ret: bool = False, interactive_plot:bool = False):
         from matplotlib import pyplot as plt
 
         def pan_zoom_factory(fig, base_scale=1.5, pan_factor=0.1):
@@ -224,7 +225,6 @@ class Stats:
 
             fig.canvas.mpl_connect('scroll_event', pan_zoom_fun)
 
-            # CHANGED: Return the function so we can hold a reference to it
             return pan_zoom_fun
 
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
